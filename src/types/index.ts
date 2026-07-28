@@ -1,3 +1,5 @@
+import { ObjectId } from "mongodb";
+
 export type SuccessResponse<T> = {
   success: true;
   message?: string;
@@ -17,3 +19,66 @@ export type ErrorResponse = {
 };
 
 export type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
+
+export interface Product {
+  _id?: ObjectId;
+  name: string;
+  price: number;
+  shortDescription?: string;
+  description?: string;
+  categories?: string[];
+  brand?: string;
+  tags?: string[];
+  seller?: string;
+  weightGrams?: number;
+  condition?: "new" | "used" | "refurbished";
+  imageUrl?: string;
+  countryOfOrigin?: string;
+  sku?: string;
+  rating?: {
+    average?: number;
+    count?: number;
+  };
+}
+
+export interface Review {
+  _id?: ObjectId;
+  product_id: ObjectId;
+  name: string;
+  email: string;
+  rating: number;
+  text: string;
+  date: Date;
+}
+
+export interface CreateProductRequest {
+  name: string;
+  price: number;
+  shortDescription?: string;
+  description?: string;
+  categories?: string[];
+  brand?: string;
+  tags?: string[];
+  seller?: string;
+  weightGrams?: number;
+  condition?: "new" | "used" | "refurbished";
+  imageUrl?: string;
+  countryOfOrigin?: string;
+  sku?: string;
+}
+
+export interface UpdateProductRequest {
+  name?: string;
+  price?: number;
+  shortDescription?: string;
+  description?: string;
+  categories?: string[];
+  brand?: string;
+  tags?: string[];
+  seller?: string;
+  weightGrams?: number;
+  condition?: "new" | "used" | "refurbished";
+  imageUrl?: string;
+  countryOfOrigin?: string;
+  sku?: string;
+}
