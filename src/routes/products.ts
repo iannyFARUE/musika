@@ -64,4 +64,30 @@ router.post("/", asyncHandler(productController.createProduct));
  */
 router.post("/batch", asyncHandler(productController.createProductsBatch));
 
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   patch:
+ *     summary: Update a product
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Product updated
+ *       404:
+ *         description: Product not found
+ */
+router.patch("/:id", asyncHandler(productController.updateProduct));
+
+/**
+ * @swagger
+ * /api/products:
+ *   patch:
+ *     summary: Update multiple products matching a filter
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Products updated
+ */
+router.patch("/", asyncHandler(productController.updateProductsBatch));
+
 export default router;
