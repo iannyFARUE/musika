@@ -24,6 +24,7 @@ const mockUpdateMany = jest.fn();
 const mockDeleteOne = jest.fn();
 const mockDeleteMany = jest.fn();
 const mockFindOneAndDelete = jest.fn();
+const mockDistinct = jest.fn();
 
 const mockGetCollection = jest.fn(() => ({
   find: mockFind.mockReturnValue({
@@ -40,6 +41,7 @@ const mockGetCollection = jest.fn(() => ({
   deleteOne: mockDeleteOne,
   deleteMany: mockDeleteMany,
   findOneAndDelete: mockFindOneAndDelete,
+  distinct: mockDistinct,
 }));
 
 jest.mock("../../src/config/database", () => ({ getCollection: mockGetCollection }));
@@ -70,6 +72,7 @@ jest.mock("../../src/utils/errorHandler", () => {
 import {
   getAllProducts,
   getProductById,
+  getDistinctCategories,
   createProduct,
   createProductsBatch,
   updateProduct,
@@ -108,6 +111,45 @@ describe("Product Controller Tests", () => {
       mockToArray.mockResolvedValue([]);
       await getAllProducts(mockRequest as Request, mockResponse as Response);
       expectSuccessResponse(mockCreateSuccessResponse, [], "Found 0 products");
+    });
+
+    it("applies a text search filter when q is provided", async () => {
+      mockRequest = createMockRequest({ query: { q: "widget" } });
+      mockToArray.mockResolvedValue([]);
+
+      await getAllProducts(mockRequest as Request, mockResponse as Response);
+
+      expect(mockFind).toHaveBeenCalledWith(expect.objectContaining({ $text: { $search: "widget" } }));
+    });
+
+    it("applies a category regex filter", async () => {
+      mockRequest = createMockRequest({ query: { category: "Electronics" } });
+      mockToArray.mockResolvedValue([]);
+
+      await getAllProducts(mockRequest as Request, mockResponse as Response);
+
+      expect(mockFind).toHaveBeenCalledWith(
+        expect.objectContaining({ categories: { $regex: expect.any(RegExp) } })
+      );
+    });
+
+    it("applies price range filters", async () => {
+      mockRequest = createMockRequest({ query: { minPrice: "10", maxPrice: "50" } });
+      mockToArray.mockResolvedValue([]);
+
+      await getAllProducts(mockRequest as Request, mockResponse as Response);
+
+      expect(mockFind).toHaveBeenCalledWith(expect.objectContaining({ price: { $gte: 10, $lte: 50 } }));
+    });
+  });
+
+  describe("getDistinctCategories", () => {
+    it("returns sorted, non-empty distinct categories", async () => {
+      mockDistinct.mockResolvedValue(["Books", "", "Electronics", null]);
+
+      await getDistinctCategories(mockRequest as Request, mockResponse as Response);
+
+      expectSuccessResponse(mockCreateSuccessResponse, ["Books", "Electronics"], "Found 2 distinct categories");
     });
   });
 

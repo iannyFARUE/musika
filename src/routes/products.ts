@@ -22,6 +22,18 @@ router.get("/", asyncHandler(productController.getAllProducts));
 
 /**
  * @swagger
+ * /api/products/categories:
+ *   get:
+ *     summary: Get all distinct product categories
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: List of distinct categories
+ */
+router.get("/categories", asyncHandler(productController.getDistinctCategories));
+
+/**
+ * @swagger
  * /api/products/{id}:
  *   get:
  *     summary: Get a product by ID

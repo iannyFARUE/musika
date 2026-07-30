@@ -2,21 +2,70 @@ import { Request, Response } from "express";
 import { Document, ObjectId, Sort } from "mongodb";
 import { getCollection } from "../config/database";
 import { createErrorResponse, createSuccessResponse, validateRequiredFields } from "../utils/errorHandler";
-import { convertFilterObjectIds, InvalidMongoQueryError, sanitizeBatchFilter, sanitizeUpdateFields } from "../utils/mongoQuery";
-import { CreateProductRequest, Product, RawProductQuery, UpdateProductRequest } from "../types";
+import {
+  convertFilterObjectIds,
+  escapeRegexLiteral,
+  InvalidMongoQueryError,
+  sanitizeBatchFilter,
+  sanitizeUpdateFields,
+} from "../utils/mongoQuery";
+import { CreateProductRequest, Product, ProductFilter, RawProductQuery, UpdateProductRequest } from "../types";
 
 export async function getAllProducts(req: Request, res: Response): Promise<void> {
   const productsCollection = getCollection<Product>("products");
 
-  const { limit = "20", skip = "0", sortBy = "name", sortOrder = "asc" }: RawProductQuery = req.query;
+  const {
+    q,
+    category,
+    minPrice,
+    maxPrice,
+    minRating,
+    limit = "20",
+    skip = "0",
+    sortBy = "name",
+    sortOrder = "asc",
+  }: RawProductQuery = req.query;
+
+  const filter: ProductFilter = {};
+
+  if (q) {
+    filter.$text = { $search: q };
+  }
+
+  const trimmedCategory = typeof category === "string" ? category.trim() : "";
+  if (trimmedCategory) {
+    filter.categories = { $regex: new RegExp(escapeRegexLiteral(trimmedCategory), "i") };
+  }
+
+  if (minPrice || maxPrice) {
+    filter.price = {};
+    if (minPrice) filter.price.$gte = parseFloat(minPrice);
+    if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+  }
+
+  if (minRating) {
+    filter["rating.average"] = { $gte: parseFloat(minRating) };
+  }
 
   const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
   const skipNum = Math.max(parseInt(skip) || 0, 0);
   const sort: Sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
-  const products = await productsCollection.find({}).sort(sort).limit(limitNum).skip(skipNum).toArray();
+  const products = await productsCollection.find(filter).sort(sort).limit(limitNum).skip(skipNum).toArray();
 
   res.json(createSuccessResponse(products, `Found ${products.length} products`));
+}
+
+export async function getDistinctCategories(req: Request, res: Response): Promise<void> {
+  const productsCollection = getCollection<Product>("products");
+
+  const categories = await productsCollection.distinct("categories");
+
+  const validCategories = categories
+    .filter((category): category is string => typeof category === "string" && category.length > 0)
+    .sort((a, b) => a.localeCompare(b));
+
+  res.json(createSuccessResponse(validCategories, `Found ${validCategories.length} distinct categories`));
 }
 
 export async function getProductById(req: Request, res: Response): Promise<void> {

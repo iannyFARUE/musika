@@ -84,8 +84,20 @@ export interface UpdateProductRequest {
 }
 
 export type RawProductQuery = {
+  q?: string;
+  category?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  minRating?: string;
   limit?: string;
   skip?: string;
   sortBy?: string;
   sortOrder?: string;
+};
+
+export type ProductFilter = {
+  $text?: { $search: string };
+  categories?: { $regex: RegExp };
+  price?: { $gte?: number; $lte?: number };
+  "rating.average"?: { $gte?: number };
 };
