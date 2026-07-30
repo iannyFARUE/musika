@@ -19,6 +19,8 @@ const mockFindOne = jest.fn();
 const mockToArray = jest.fn();
 const mockInsertOne = jest.fn();
 const mockInsertMany = jest.fn();
+const mockUpdateOne = jest.fn();
+const mockUpdateMany = jest.fn();
 
 const mockGetCollection = jest.fn(() => ({
   find: mockFind.mockReturnValue({
@@ -30,6 +32,8 @@ const mockGetCollection = jest.fn(() => ({
   findOne: mockFindOne,
   insertOne: mockInsertOne,
   insertMany: mockInsertMany,
+  updateOne: mockUpdateOne,
+  updateMany: mockUpdateMany,
 }));
 
 jest.mock("../../src/config/database", () => ({ getCollection: mockGetCollection }));
@@ -62,6 +66,8 @@ import {
   getProductById,
   createProduct,
   createProductsBatch,
+  updateProduct,
+  updateProductsBatch,
 } from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
@@ -168,6 +174,83 @@ describe("Product Controller Tests", () => {
         "Request body must be a non-empty array of product objects",
         "INVALID_INPUT"
       );
+    });
+  });
+
+  describe("updateProduct", () => {
+    it("returns 400 for an invalid ObjectId", async () => {
+      mockRequest = createMockRequest({ params: { id: INVALID_PRODUCT_ID }, body: { price: 5 } });
+
+      await updateProduct(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 400, "Invalid product ID format", "INVALID_OBJECT_ID");
+    });
+
+    it("returns 400 when the update body is empty", async () => {
+      mockRequest = createMockRequest({ params: { id: TEST_PRODUCT_ID }, body: {} });
+
+      await updateProduct(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 400, "No update data provided", "NO_UPDATE_DATA");
+    });
+
+    it("returns 404 when no product matches", async () => {
+      mockRequest = createMockRequest({ params: { id: TEST_PRODUCT_ID }, body: { price: 5 } });
+      mockUpdateOne.mockResolvedValue({ matchedCount: 0, modifiedCount: 0 });
+
+      await updateProduct(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 404, "Product not found", "PRODUCT_NOT_FOUND");
+    });
+
+    it("updates and returns the product", async () => {
+      mockRequest = createMockRequest({ params: { id: TEST_PRODUCT_ID }, body: { price: 5 } });
+      mockUpdateOne.mockResolvedValue(SAMPLE_RESPONSES.UPDATE_ONE);
+      mockFindOne.mockResolvedValue({ ...SAMPLE_PRODUCT, price: 5 });
+
+      await updateProduct(mockRequest as Request, mockResponse as Response);
+
+      expect(mockUpdateOne).toHaveBeenCalled();
+      expect(mockJson).toHaveBeenCalled();
+    });
+  });
+
+  describe("updateProductsBatch", () => {
+    it("returns 400 when filter or update is missing", async () => {
+      mockRequest = createMockRequest({ body: { filter: { brand: "Nova" } } });
+
+      await updateProductsBatch(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(
+        mockStatus,
+        mockJson,
+        400,
+        "Both filter and update objects are required",
+        "MISSING_REQUIRED_FIELDS"
+      );
+    });
+
+    it("rejects an unsupported filter field", async () => {
+      mockRequest = createMockRequest({ body: { filter: { notAField: 1 }, update: { price: 5 } } });
+
+      await updateProductsBatch(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(
+        mockStatus,
+        mockJson,
+        400,
+        "Filter contains an unsupported field or operator",
+        "INVALID_FILTER"
+      );
+    });
+
+    it("updates matching products", async () => {
+      mockRequest = createMockRequest({ body: { filter: { brand: "Nova" }, update: { price: 5 } } });
+      mockUpdateMany.mockResolvedValue(SAMPLE_RESPONSES.UPDATE_MANY);
+
+      await updateProductsBatch(mockRequest as Request, mockResponse as Response);
+
+      expect(mockUpdateMany).toHaveBeenCalledWith({ brand: "Nova" }, { $set: { price: 5 } });
     });
   });
 });

@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
-import { ObjectId, Sort } from "mongodb";
+import { Document, ObjectId, Sort } from "mongodb";
 import { getCollection } from "../config/database";
 import { createErrorResponse, createSuccessResponse, validateRequiredFields } from "../utils/errorHandler";
-import { CreateProductRequest, Product, RawProductQuery } from "../types";
+import { convertFilterObjectIds, InvalidMongoQueryError, sanitizeBatchFilter, sanitizeUpdateFields } from "../utils/mongoQuery";
+import { CreateProductRequest, Product, RawProductQuery, UpdateProductRequest } from "../types";
 
 export async function getAllProducts(req: Request, res: Response): Promise<void> {
   const productsCollection = getCollection<Product>("products");
@@ -91,4 +92,104 @@ export async function createProductsBatch(req: Request, res: Response): Promise<
         `Successfully created ${result.insertedCount} products`
       )
     );
+}
+
+export async function updateProduct(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  const updateData: UpdateProductRequest = req.body;
+
+  if (typeof id !== "string" || !ObjectId.isValid(id)) {
+    res.status(400).json(createErrorResponse("Invalid product ID format", "INVALID_OBJECT_ID"));
+    return;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    res.status(400).json(createErrorResponse("No update data provided", "NO_UPDATE_DATA"));
+    return;
+  }
+
+  const productsCollection = getCollection<Product>("products");
+
+  let sanitizedUpdate: UpdateProductRequest;
+  try {
+    sanitizedUpdate = sanitizeUpdateFields(updateData as Record<string, unknown>);
+  } catch (error) {
+    if (error instanceof InvalidMongoQueryError) {
+      res.status(400).json(createErrorResponse(error.message, "INVALID_UPDATE"));
+      return;
+    }
+    throw error;
+  }
+
+  const result = await productsCollection.updateOne({ _id: new ObjectId(id) }, { $set: sanitizedUpdate });
+
+  if (result.matchedCount === 0) {
+    res.status(404).json(createErrorResponse("Product not found", "PRODUCT_NOT_FOUND"));
+    return;
+  }
+
+  const updatedProduct = await productsCollection.findOne({ _id: new ObjectId(id) });
+
+  res.json(
+    createSuccessResponse(updatedProduct, `Product updated successfully. Modified ${result.modifiedCount} field(s).`)
+  );
+}
+
+export async function updateProductsBatch(req: Request, res: Response): Promise<void> {
+  const { filter, update } = req.body;
+
+  if (!filter || !update) {
+    res.status(400).json(createErrorResponse("Both filter and update objects are required", "MISSING_REQUIRED_FIELDS"));
+    return;
+  }
+
+  if (Object.keys(update).length === 0) {
+    res.status(400).json(createErrorResponse("Update object cannot be empty", "EMPTY_UPDATE"));
+    return;
+  }
+
+  const productsCollection = getCollection<Product>("products");
+
+  let sanitizedFilter: Document;
+  let sanitizedUpdate: UpdateProductRequest;
+  let processedFilter: Document;
+
+  try {
+    sanitizedFilter = sanitizeBatchFilter(filter);
+  } catch (error) {
+    if (error instanceof InvalidMongoQueryError) {
+      res.status(400).json(createErrorResponse(error.message, "INVALID_FILTER"));
+      return;
+    }
+    throw error;
+  }
+
+  try {
+    sanitizedUpdate = sanitizeUpdateFields(update);
+  } catch (error) {
+    if (error instanceof InvalidMongoQueryError) {
+      res.status(400).json(createErrorResponse(error.message, "INVALID_UPDATE"));
+      return;
+    }
+    throw error;
+  }
+
+  try {
+    processedFilter = convertFilterObjectIds(sanitizedFilter);
+  } catch (error) {
+    if (error instanceof InvalidMongoQueryError) {
+      res.status(400).json(createErrorResponse(error.message, "INVALID_OBJECT_ID"));
+      return;
+    }
+    throw error;
+  }
+
+  const result = await productsCollection.updateMany(processedFilter, { $set: sanitizedUpdate });
+
+  res.json(
+    createSuccessResponse(
+      { matchedCount: result.matchedCount, modifiedCount: result.modifiedCount },
+      `Update operation completed. Matched ${result.matchedCount} documents, modified ${result.modifiedCount} documents.`
+    )
+  );
 }

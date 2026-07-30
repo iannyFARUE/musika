@@ -48,6 +48,8 @@ export const SAMPLE_REQUESTS = {
 export const SAMPLE_RESPONSES = {
   INSERT_ONE: { acknowledged: true, insertedId: "507f1f77bcf86cd799439099" },
   INSERT_MANY: { acknowledged: true, insertedCount: 2, insertedIds: { 0: "id1", 1: "id2" } },
+  UPDATE_ONE: { matchedCount: 1, modifiedCount: 1 },
+  UPDATE_MANY: { matchedCount: 5, modifiedCount: 3 },
 };
 
 export function expectErrorResponse(
