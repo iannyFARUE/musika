@@ -3,6 +3,8 @@ import {
   TEST_OBJECT_IDS,
   SAMPLE_PRODUCT,
   SAMPLE_PRODUCTS,
+  SAMPLE_REQUESTS,
+  SAMPLE_RESPONSES,
   createMockRequest,
   createMockResponse,
   expectSuccessResponse,
@@ -15,6 +17,8 @@ const INVALID_PRODUCT_ID = TEST_OBJECT_IDS.INVALID;
 const mockFind = jest.fn();
 const mockFindOne = jest.fn();
 const mockToArray = jest.fn();
+const mockInsertOne = jest.fn();
+const mockInsertMany = jest.fn();
 
 const mockGetCollection = jest.fn(() => ({
   find: mockFind.mockReturnValue({
@@ -24,6 +28,8 @@ const mockGetCollection = jest.fn(() => ({
     sort: jest.fn().mockReturnThis(),
   }),
   findOne: mockFindOne,
+  insertOne: mockInsertOne,
+  insertMany: mockInsertMany,
 }));
 
 jest.mock("../../src/config/database", () => ({ getCollection: mockGetCollection }));
@@ -42,13 +48,21 @@ const mockCreateErrorResponse = jest.fn((message: string, code?: string, details
   timestamp: "2024-01-01T00:00:00.000Z",
 }));
 
-jest.mock("../../src/utils/errorHandler", () => ({
-  createSuccessResponse: mockCreateSuccessResponse,
-  createErrorResponse: mockCreateErrorResponse,
-  validateRequiredFields: jest.fn(),
-}));
+jest.mock("../../src/utils/errorHandler", () => {
+  const actual = jest.requireActual("../../src/utils/errorHandler");
+  return {
+    createSuccessResponse: mockCreateSuccessResponse,
+    createErrorResponse: mockCreateErrorResponse,
+    validateRequiredFields: actual.validateRequiredFields,
+  };
+});
 
-import { getAllProducts, getProductById } from "../../src/controllers/productController";
+import {
+  getAllProducts,
+  getProductById,
+  createProduct,
+  createProductsBatch,
+} from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
   let mockRequest: Partial<Request>;
@@ -107,6 +121,53 @@ describe("Product Controller Tests", () => {
       await getProductById(mockRequest as Request, mockResponse as Response);
 
       expectSuccessResponse(mockCreateSuccessResponse, SAMPLE_PRODUCT, "Product retrieved successfully");
+    });
+  });
+
+  describe("createProduct", () => {
+    it("creates a product and returns it", async () => {
+      mockRequest = createMockRequest({ body: SAMPLE_REQUESTS.CREATE_PRODUCT });
+      mockInsertOne.mockResolvedValue(SAMPLE_RESPONSES.INSERT_ONE);
+      mockFindOne.mockResolvedValue({ _id: SAMPLE_RESPONSES.INSERT_ONE.insertedId, ...SAMPLE_REQUESTS.CREATE_PRODUCT });
+
+      await createProduct(mockRequest as Request, mockResponse as Response);
+
+      expect(mockInsertOne).toHaveBeenCalledWith(SAMPLE_REQUESTS.CREATE_PRODUCT);
+      expect(mockStatus).toHaveBeenCalledWith(201);
+    });
+
+    it("throws when required fields are missing", async () => {
+      mockRequest = createMockRequest({ body: { categories: ["Electronics"] } });
+
+      await expect(createProduct(mockRequest as Request, mockResponse as Response)).rejects.toThrow(
+        "Missing required fields: name, price"
+      );
+    });
+  });
+
+  describe("createProductsBatch", () => {
+    it("creates multiple products", async () => {
+      mockRequest = createMockRequest({ body: SAMPLE_REQUESTS.BATCH_CREATE });
+      mockInsertMany.mockResolvedValue(SAMPLE_RESPONSES.INSERT_MANY);
+
+      await createProductsBatch(mockRequest as Request, mockResponse as Response);
+
+      expect(mockInsertMany).toHaveBeenCalledWith(SAMPLE_REQUESTS.BATCH_CREATE);
+      expect(mockStatus).toHaveBeenCalledWith(201);
+    });
+
+    it("returns 400 when body is not a non-empty array", async () => {
+      mockRequest = createMockRequest({ body: [] });
+
+      await createProductsBatch(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(
+        mockStatus,
+        mockJson,
+        400,
+        "Request body must be a non-empty array of product objects",
+        "INVALID_INPUT"
+      );
     });
   });
 });

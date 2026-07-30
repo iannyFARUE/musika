@@ -37,6 +37,19 @@ export function expectSuccessResponse(mockCreateSuccessResponse: jest.Mock, data
   expect(mockCreateSuccessResponse).toHaveBeenCalledWith(data, message);
 }
 
+export const SAMPLE_REQUESTS = {
+  CREATE_PRODUCT: { name: "New Widget", price: 24.99, categories: ["Electronics"] },
+  BATCH_CREATE: [
+    { name: "Batch Widget 1", price: 9.99 },
+    { name: "Batch Widget 2", price: 14.99 },
+  ],
+};
+
+export const SAMPLE_RESPONSES = {
+  INSERT_ONE: { acknowledged: true, insertedId: "507f1f77bcf86cd799439099" },
+  INSERT_MANY: { acknowledged: true, insertedCount: 2, insertedIds: { 0: "id1", 1: "id2" } },
+};
+
 export function expectErrorResponse(
   mockStatus: jest.Mock,
   mockJson: jest.Mock,

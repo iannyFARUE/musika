@@ -40,4 +40,28 @@ router.get("/", asyncHandler(productController.getAllProducts));
  */
 router.get("/:id", asyncHandler(productController.getProductById));
 
+/**
+ * @swagger
+ * /api/products:
+ *   post:
+ *     summary: Create a new product
+ *     tags: [Products]
+ *     responses:
+ *       201:
+ *         description: Product created
+ */
+router.post("/", asyncHandler(productController.createProduct));
+
+/**
+ * @swagger
+ * /api/products/batch:
+ *   post:
+ *     summary: Create multiple products
+ *     tags: [Products]
+ *     responses:
+ *       201:
+ *         description: Products created
+ */
+router.post("/batch", asyncHandler(productController.createProductsBatch));
+
 export default router;
