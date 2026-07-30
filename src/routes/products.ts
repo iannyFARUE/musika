@@ -90,4 +90,44 @@ router.patch("/:id", asyncHandler(productController.updateProduct));
  */
 router.patch("/", asyncHandler(productController.updateProductsBatch));
 
+/**
+ * @swagger
+ * /api/products/{id}/find-and-delete:
+ *   delete:
+ *     summary: Find and delete a product atomically
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Product found and deleted
+ *       404:
+ *         description: Product not found
+ */
+router.delete("/:id/find-and-delete", asyncHandler(productController.findAndDeleteProduct));
+
+/**
+ * @swagger
+ * /api/products/{id}:
+ *   delete:
+ *     summary: Delete a product
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Product deleted
+ *       404:
+ *         description: Product not found
+ */
+router.delete("/:id", asyncHandler(productController.deleteProduct));
+
+/**
+ * @swagger
+ * /api/products:
+ *   delete:
+ *     summary: Delete multiple products matching a filter
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Products deleted
+ */
+router.delete("/", asyncHandler(productController.deleteProductsBatch));
+
 export default router;

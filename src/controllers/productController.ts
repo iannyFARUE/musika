@@ -193,3 +193,91 @@ export async function updateProductsBatch(req: Request, res: Response): Promise<
     )
   );
 }
+
+export async function deleteProduct(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  if (typeof id !== "string" || !ObjectId.isValid(id)) {
+    res.status(400).json(createErrorResponse("Invalid product ID format", "INVALID_OBJECT_ID"));
+    return;
+  }
+
+  const productsCollection = getCollection<Product>("products");
+  const result = await productsCollection.deleteOne({ _id: new ObjectId(id) });
+
+  if (result.deletedCount === 0) {
+    res.status(404).json(createErrorResponse("Product not found", "PRODUCT_NOT_FOUND"));
+    return;
+  }
+
+  res.json(createSuccessResponse({ deletedCount: result.deletedCount }, "Product deleted successfully"));
+}
+
+export async function deleteProductsBatch(req: Request, res: Response): Promise<void> {
+  const { filter } = req.body;
+
+  if (!filter || Object.keys(filter).length === 0) {
+    res
+      .status(400)
+      .json(
+        createErrorResponse(
+          "Filter object is required and cannot be empty. This prevents accidental deletion of all documents.",
+          "MISSING_FILTER"
+        )
+      );
+    return;
+  }
+
+  const productsCollection = getCollection<Product>("products");
+
+  let sanitizedFilter: Document;
+  let processedFilter: Document;
+
+  try {
+    sanitizedFilter = sanitizeBatchFilter(filter);
+  } catch (error) {
+    if (error instanceof InvalidMongoQueryError) {
+      res.status(400).json(createErrorResponse(error.message, "INVALID_FILTER"));
+      return;
+    }
+    throw error;
+  }
+
+  try {
+    processedFilter = convertFilterObjectIds(sanitizedFilter);
+  } catch (error) {
+    if (error instanceof InvalidMongoQueryError) {
+      res.status(400).json(createErrorResponse(error.message, "INVALID_OBJECT_ID"));
+      return;
+    }
+    throw error;
+  }
+
+  const result = await productsCollection.deleteMany(processedFilter);
+
+  res.json(
+    createSuccessResponse(
+      { deletedCount: result.deletedCount },
+      `Delete operation completed. Removed ${result.deletedCount} documents.`
+    )
+  );
+}
+
+export async function findAndDeleteProduct(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+
+  if (typeof id !== "string" || !ObjectId.isValid(id)) {
+    res.status(400).json(createErrorResponse("Invalid product ID format", "INVALID_OBJECT_ID"));
+    return;
+  }
+
+  const productsCollection = getCollection<Product>("products");
+  const deletedProduct = await productsCollection.findOneAndDelete({ _id: new ObjectId(id) });
+
+  if (!deletedProduct) {
+    res.status(404).json(createErrorResponse("Product not found", "PRODUCT_NOT_FOUND"));
+    return;
+  }
+
+  res.json(createSuccessResponse(deletedProduct, "Product found and deleted successfully"));
+}

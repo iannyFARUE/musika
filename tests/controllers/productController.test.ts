@@ -21,6 +21,9 @@ const mockInsertOne = jest.fn();
 const mockInsertMany = jest.fn();
 const mockUpdateOne = jest.fn();
 const mockUpdateMany = jest.fn();
+const mockDeleteOne = jest.fn();
+const mockDeleteMany = jest.fn();
+const mockFindOneAndDelete = jest.fn();
 
 const mockGetCollection = jest.fn(() => ({
   find: mockFind.mockReturnValue({
@@ -34,6 +37,9 @@ const mockGetCollection = jest.fn(() => ({
   insertMany: mockInsertMany,
   updateOne: mockUpdateOne,
   updateMany: mockUpdateMany,
+  deleteOne: mockDeleteOne,
+  deleteMany: mockDeleteMany,
+  findOneAndDelete: mockFindOneAndDelete,
 }));
 
 jest.mock("../../src/config/database", () => ({ getCollection: mockGetCollection }));
@@ -68,6 +74,9 @@ import {
   createProductsBatch,
   updateProduct,
   updateProductsBatch,
+  deleteProduct,
+  deleteProductsBatch,
+  findAndDeleteProduct,
 } from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
@@ -251,6 +260,79 @@ describe("Product Controller Tests", () => {
       await updateProductsBatch(mockRequest as Request, mockResponse as Response);
 
       expect(mockUpdateMany).toHaveBeenCalledWith({ brand: "Nova" }, { $set: { price: 5 } });
+    });
+  });
+
+  describe("deleteProduct", () => {
+    it("returns 400 for an invalid ObjectId", async () => {
+      mockRequest = createMockRequest({ params: { id: INVALID_PRODUCT_ID } });
+
+      await deleteProduct(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 400, "Invalid product ID format", "INVALID_OBJECT_ID");
+    });
+
+    it("returns 404 when nothing is deleted", async () => {
+      mockRequest = createMockRequest({ params: { id: TEST_PRODUCT_ID } });
+      mockDeleteOne.mockResolvedValue({ deletedCount: 0 });
+
+      await deleteProduct(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 404, "Product not found", "PRODUCT_NOT_FOUND");
+    });
+
+    it("deletes the product", async () => {
+      mockRequest = createMockRequest({ params: { id: TEST_PRODUCT_ID } });
+      mockDeleteOne.mockResolvedValue({ deletedCount: 1 });
+
+      await deleteProduct(mockRequest as Request, mockResponse as Response);
+
+      expect(mockDeleteOne).toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteProductsBatch", () => {
+    it("rejects an empty filter", async () => {
+      mockRequest = createMockRequest({ body: { filter: {} } });
+
+      await deleteProductsBatch(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(
+        mockStatus,
+        mockJson,
+        400,
+        "Filter object is required and cannot be empty. This prevents accidental deletion of all documents.",
+        "MISSING_FILTER"
+      );
+    });
+
+    it("deletes matching products", async () => {
+      mockRequest = createMockRequest({ body: { filter: { brand: "Nova" } } });
+      mockDeleteMany.mockResolvedValue({ deletedCount: 10 });
+
+      await deleteProductsBatch(mockRequest as Request, mockResponse as Response);
+
+      expect(mockDeleteMany).toHaveBeenCalledWith({ brand: "Nova" });
+    });
+  });
+
+  describe("findAndDeleteProduct", () => {
+    it("returns 404 when nothing is found", async () => {
+      mockRequest = createMockRequest({ params: { id: TEST_PRODUCT_ID } });
+      mockFindOneAndDelete.mockResolvedValue(null);
+
+      await findAndDeleteProduct(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 404, "Product not found", "PRODUCT_NOT_FOUND");
+    });
+
+    it("finds and deletes the product", async () => {
+      mockRequest = createMockRequest({ params: { id: TEST_PRODUCT_ID } });
+      mockFindOneAndDelete.mockResolvedValue(SAMPLE_PRODUCT);
+
+      await findAndDeleteProduct(mockRequest as Request, mockResponse as Response);
+
+      expectSuccessResponse(mockCreateSuccessResponse, SAMPLE_PRODUCT, "Product found and deleted successfully");
     });
   });
 });
