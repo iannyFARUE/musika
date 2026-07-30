@@ -82,3 +82,10 @@ export interface UpdateProductRequest {
   countryOfOrigin?: string;
   sku?: string;
 }
+
+export type RawProductQuery = {
+  limit?: string;
+  skip?: string;
+  sortBy?: string;
+  sortOrder?: string;
+};

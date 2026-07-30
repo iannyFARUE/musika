@@ -5,6 +5,7 @@ import { closeDatabaseConnection, connectToDatabase, verifyRequirements } from "
 import { errorHandler } from "./utils/errorHandler";
 import logger from "./utils/logger";
 import { requestLogger } from "./middleware/requestLogger";
+import productsRouter from "./routes/products";
 
 dotenv.config({ quiet: true });
 
@@ -19,6 +20,8 @@ app.use(cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins, 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(requestLogger);
+
+app.use("/api/products", productsRouter);
 
 app.get("/", (req, res) => {
   res.json({
