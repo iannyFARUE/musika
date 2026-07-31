@@ -6,6 +6,7 @@ import {
   SAMPLE_REQUESTS,
   SAMPLE_RESPONSES,
   SAMPLE_REVIEWS_AGGREGATION,
+  SAMPLE_CATEGORY_AGGREGATION,
   createMockRequest,
   createMockResponse,
   expectSuccessResponse,
@@ -84,6 +85,7 @@ import {
   deleteProductsBatch,
   findAndDeleteProduct,
   getProductsWithMostRecentReviews,
+  getProductsByCategoryWithStats,
 } from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
@@ -398,6 +400,17 @@ describe("Product Controller Tests", () => {
       await getProductsWithMostRecentReviews(mockRequest as Request, mockResponse as Response);
 
       expectErrorResponse(mockStatus, mockJson, 400, "Invalid product ID format", "INVALID_OBJECT_ID");
+    });
+  });
+
+  describe("getProductsByCategoryWithStats", () => {
+    it("returns category statistics", async () => {
+      mockToArray.mockResolvedValue(SAMPLE_CATEGORY_AGGREGATION);
+
+      await getProductsByCategoryWithStats(mockRequest as Request, mockResponse as Response);
+
+      expect(mockAggregate).toHaveBeenCalled();
+      expectSuccessResponse(mockCreateSuccessResponse, SAMPLE_CATEGORY_AGGREGATION, "Aggregated statistics for 2 categories");
     });
   });
 });

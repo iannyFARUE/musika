@@ -72,6 +72,11 @@ export const SAMPLE_REVIEWS_AGGREGATION = [
   },
 ];
 
+export const SAMPLE_CATEGORY_AGGREGATION = [
+  { category: "Electronics", productCount: 12, averagePrice: 45.5, highestPrice: 199.99, lowestPrice: 9.99, totalReviews: 340 },
+  { category: "Books", productCount: 8, averagePrice: 15.2, highestPrice: 29.99, lowestPrice: 4.99, totalReviews: 120 },
+];
+
 export function expectErrorResponse(
   mockStatus: jest.Mock,
   mockJson: jest.Mock,

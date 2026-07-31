@@ -47,6 +47,18 @@ router.get("/aggregations/reportingByReviews", asyncHandler(productController.ge
 
 /**
  * @swagger
+ * /api/products/aggregations/reportingByCategory:
+ *   get:
+ *     summary: Get product statistics grouped by category
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Category statistics
+ */
+router.get("/aggregations/reportingByCategory", asyncHandler(productController.getProductsByCategoryWithStats));
+
+/**
+ * @swagger
  * /api/products/{id}:
  *   get:
  *     summary: Get a product by ID

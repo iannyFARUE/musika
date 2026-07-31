@@ -414,3 +414,38 @@ export async function getProductsWithMostRecentReviews(req: Request, res: Respon
 
   res.json(createSuccessResponse(processedResults, message));
 }
+
+export async function getProductsByCategoryWithStats(req: Request, res: Response): Promise<void> {
+  const productsCollection = getCollection<Product>("products");
+
+  const pipeline = [
+    { $match: { categories: { $exists: true, $ne: null, $not: { $eq: [] } } } },
+    { $unwind: "$categories" },
+    {
+      $group: {
+        _id: "$categories",
+        productCount: { $sum: 1 },
+        averagePrice: { $avg: "$price" },
+        highestPrice: { $max: "$price" },
+        lowestPrice: { $min: "$price" },
+        totalReviews: { $sum: "$rating.count" },
+      },
+    },
+    {
+      $project: {
+        category: "$_id",
+        productCount: 1,
+        averagePrice: { $round: ["$averagePrice", 2] },
+        highestPrice: 1,
+        lowestPrice: 1,
+        totalReviews: 1,
+        _id: 0,
+      },
+    },
+    { $sort: { category: 1 } },
+  ];
+
+  const results = await productsCollection.aggregate(pipeline).toArray();
+
+  res.json(createSuccessResponse(results, `Aggregated statistics for ${results.length} categories`));
+}
