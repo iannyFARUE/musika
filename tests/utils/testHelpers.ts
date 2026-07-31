@@ -77,6 +77,11 @@ export const SAMPLE_CATEGORY_AGGREGATION = [
   { category: "Books", productCount: 8, averagePrice: 15.2, highestPrice: 29.99, lowestPrice: 4.99, totalReviews: 120 },
 ];
 
+export const SAMPLE_BRAND_AGGREGATION = [
+  { brand: "Nova", productCount: 18, averageRating: 4.2 },
+  { brand: "Zenith", productCount: 14, averageRating: 3.9 },
+];
+
 export function expectErrorResponse(
   mockStatus: jest.Mock,
   mockJson: jest.Mock,

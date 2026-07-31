@@ -59,6 +59,18 @@ router.get("/aggregations/reportingByCategory", asyncHandler(productController.g
 
 /**
  * @swagger
+ * /api/products/aggregations/reportingByBrand:
+ *   get:
+ *     summary: Get brands with the most products
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Brand statistics
+ */
+router.get("/aggregations/reportingByBrand", asyncHandler(productController.getBrandsWithMostProducts));
+
+/**
+ * @swagger
  * /api/products/{id}:
  *   get:
  *     summary: Get a product by ID

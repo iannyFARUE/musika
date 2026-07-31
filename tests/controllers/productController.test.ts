@@ -7,6 +7,7 @@ import {
   SAMPLE_RESPONSES,
   SAMPLE_REVIEWS_AGGREGATION,
   SAMPLE_CATEGORY_AGGREGATION,
+  SAMPLE_BRAND_AGGREGATION,
   createMockRequest,
   createMockResponse,
   expectSuccessResponse,
@@ -86,6 +87,7 @@ import {
   findAndDeleteProduct,
   getProductsWithMostRecentReviews,
   getProductsByCategoryWithStats,
+  getBrandsWithMostProducts,
 } from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
@@ -411,6 +413,16 @@ describe("Product Controller Tests", () => {
 
       expect(mockAggregate).toHaveBeenCalled();
       expectSuccessResponse(mockCreateSuccessResponse, SAMPLE_CATEGORY_AGGREGATION, "Aggregated statistics for 2 categories");
+    });
+  });
+
+  describe("getBrandsWithMostProducts", () => {
+    it("returns brand statistics", async () => {
+      mockToArray.mockResolvedValue(SAMPLE_BRAND_AGGREGATION);
+
+      await getBrandsWithMostProducts(mockRequest as Request, mockResponse as Response);
+
+      expectSuccessResponse(mockCreateSuccessResponse, SAMPLE_BRAND_AGGREGATION, "Found 2 brands with most products");
     });
   });
 });

@@ -449,3 +449,34 @@ export async function getProductsByCategoryWithStats(req: Request, res: Response
 
   res.json(createSuccessResponse(results, `Aggregated statistics for ${results.length} categories`));
 }
+
+export async function getBrandsWithMostProducts(req: Request, res: Response): Promise<void> {
+  const productsCollection = getCollection<Product>("products");
+  const { limit = "20" } = req.query;
+  const limitNum = Math.min(Math.max(parseInt(limit as string) || 20, 1), 100);
+
+  const pipeline = [
+    { $match: { brand: { $exists: true, $nin: [null, ""] } } },
+    {
+      $group: {
+        _id: "$brand",
+        productCount: { $sum: 1 },
+        averageRating: { $avg: "$rating.average" },
+      },
+    },
+    { $sort: { productCount: -1 } },
+    { $limit: limitNum },
+    {
+      $project: {
+        brand: "$_id",
+        productCount: 1,
+        averageRating: { $round: ["$averageRating", 2] },
+        _id: 0,
+      },
+    },
+  ];
+
+  const results = await productsCollection.aggregate(pipeline).toArray();
+
+  res.json(createSuccessResponse(results, `Found ${results.length} brands with most products`));
+}
