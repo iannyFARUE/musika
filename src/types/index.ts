@@ -119,3 +119,39 @@ export interface ProductWithReviewsResult {
   totalReviews: number;
   mostRecentReviewDate?: Date;
 }
+
+export interface SearchPhrase {
+  phrase?: { query: string; path: string };
+  text?: {
+    query: string;
+    path: string;
+    matchCriteria?: "any" | "all";
+    fuzzy?: { maxEdits: number; prefixLength: number };
+  };
+  compound?: {
+    should?: Array<{
+      phrase?: { query: string; path: string };
+      text?: {
+        query: string;
+        path: string;
+        matchCriteria?: "any" | "all";
+        fuzzy?: { maxEdits: number; prefixLength: number };
+      };
+    }>;
+    minimumShouldMatch?: number;
+  };
+}
+
+export type RawProductSearchQuery = {
+  brand?: string;
+  tags?: string;
+  seller?: string;
+  limit?: string;
+  skip?: string;
+  searchOperator?: string;
+};
+
+export interface SearchProductsResponse {
+  products: Product[];
+  totalCount: number;
+}

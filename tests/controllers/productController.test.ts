@@ -8,6 +8,7 @@ import {
   SAMPLE_REVIEWS_AGGREGATION,
   SAMPLE_CATEGORY_AGGREGATION,
   SAMPLE_BRAND_AGGREGATION,
+  SAMPLE_SEARCH_RESULTS,
   createMockRequest,
   createMockResponse,
   expectSuccessResponse,
@@ -88,6 +89,7 @@ import {
   getProductsWithMostRecentReviews,
   getProductsByCategoryWithStats,
   getBrandsWithMostProducts,
+  searchProducts,
 } from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
@@ -423,6 +425,38 @@ describe("Product Controller Tests", () => {
       await getBrandsWithMostProducts(mockRequest as Request, mockResponse as Response);
 
       expectSuccessResponse(mockCreateSuccessResponse, SAMPLE_BRAND_AGGREGATION, "Found 2 brands with most products");
+    });
+  });
+
+  describe("searchProducts", () => {
+    it("returns 400 when no search parameters are provided", async () => {
+      mockRequest = createMockRequest({ query: {} });
+
+      await searchProducts(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 400, "At least one search parameter must be provided", "NO_SEARCH_PARAMETERS");
+    });
+
+    it("returns 400 for an invalid searchOperator", async () => {
+      mockRequest = createMockRequest({ query: { brand: "Nova", searchOperator: "invalid" } });
+
+      await searchProducts(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+    });
+
+    it("returns search results with total count", async () => {
+      mockRequest = createMockRequest({ query: { brand: "Nova" } });
+      mockToArray.mockResolvedValue([{ totalCount: [{ count: 1 }], results: SAMPLE_SEARCH_RESULTS }]);
+
+      await searchProducts(mockRequest as Request, mockResponse as Response);
+
+      expect(mockAggregate).toHaveBeenCalled();
+      expectSuccessResponse(
+        mockCreateSuccessResponse,
+        { products: SAMPLE_SEARCH_RESULTS, totalCount: 1 },
+        "Found 1 products matching the search criteria"
+      );
     });
   });
 });

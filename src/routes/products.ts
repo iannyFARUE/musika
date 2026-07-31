@@ -34,6 +34,19 @@ router.get("/categories", asyncHandler(productController.getDistinctCategories))
 
 /**
  * @swagger
+ * /api/products/search:
+ *   get:
+ *     summary: Search products via Atlas Search
+ *     description: Compound fuzzy/phrase search over brand, tags, and seller.
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Search results
+ */
+router.get("/search", asyncHandler(productController.searchProducts));
+
+/**
+ * @swagger
  * /api/products/aggregations/reportingByReviews:
  *   get:
  *     summary: Get products with their most recent reviews

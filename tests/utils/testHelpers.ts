@@ -82,6 +82,10 @@ export const SAMPLE_BRAND_AGGREGATION = [
   { brand: "Zenith", productCount: 14, averageRating: 3.9 },
 ];
 
+export const SAMPLE_SEARCH_RESULTS = [
+  { _id: new ObjectId(), name: "Nova Wireless Speaker", brand: "Nova", tags: ["bestseller"], price: 49.99 },
+];
+
 export function expectErrorResponse(
   mockStatus: jest.Mock,
   mockJson: jest.Mock,

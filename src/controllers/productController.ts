@@ -16,6 +16,9 @@ import {
   ProductFilter,
   ProductWithReviewsResult,
   RawProductQuery,
+  RawProductSearchQuery,
+  SearchPhrase,
+  SearchProductsResponse,
   UpdateProductRequest,
 } from "../types";
 
@@ -479,4 +482,97 @@ export async function getBrandsWithMostProducts(req: Request, res: Response): Pr
   const results = await productsCollection.aggregate(pipeline).toArray();
 
   res.json(createSuccessResponse(results, `Found ${results.length} brands with most products`));
+}
+
+export async function searchProducts(req: Request, res: Response): Promise<void> {
+  const productsCollection = getCollection<Product>("products");
+
+  const {
+    brand,
+    tags,
+    seller,
+    limit = "20",
+    skip = "0",
+    searchOperator = "must",
+  }: RawProductSearchQuery = req.query;
+
+  const validOperators = ["must", "should", "mustNot", "filter"];
+  if (!validOperators.includes(searchOperator)) {
+    res
+      .status(400)
+      .json(
+        createErrorResponse(
+          `Invalid searchOperator '${searchOperator}'. Must be one of: ${validOperators.join(", ")}`,
+          "INVALID_SEARCH_OPERATOR"
+        )
+      );
+    return;
+  }
+
+  const searchPhrases: SearchPhrase[] = [];
+
+  function addFuzzyFieldSearch(path: string, value?: string): void {
+    if (!value) return;
+    searchPhrases.push({
+      compound: {
+        should: [
+          { phrase: { query: value, path } },
+          { text: { query: value, path, matchCriteria: "all" } },
+          { text: { query: value, path, matchCriteria: "all", fuzzy: { maxEdits: 1, prefixLength: 2 } } },
+        ],
+        minimumShouldMatch: 1,
+      },
+    });
+  }
+
+  addFuzzyFieldSearch("brand", brand);
+  addFuzzyFieldSearch("tags", tags);
+  addFuzzyFieldSearch("seller", seller);
+
+  if (searchPhrases.length === 0) {
+    res.status(400).json(createErrorResponse("At least one search parameter must be provided", "NO_SEARCH_PARAMETERS"));
+    return;
+  }
+
+  const limitNum = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+  const skipNum = Math.max(parseInt(skip) || 0, 0);
+
+  const pipeline = [
+    { $search: { index: "productSearchIndex", compound: { [searchOperator]: searchPhrases } } },
+    {
+      $facet: {
+        totalCount: [{ $count: "count" }],
+        results: [
+          { $skip: skipNum },
+          { $limit: limitNum },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              price: 1,
+              shortDescription: 1,
+              description: 1,
+              categories: 1,
+              brand: 1,
+              tags: 1,
+              seller: 1,
+              imageUrl: 1,
+              condition: 1,
+              countryOfOrigin: 1,
+              rating: 1,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const results = await productsCollection.aggregate(pipeline).toArray();
+  const facetResult = results[0] || {};
+  const totalCount = facetResult.totalCount?.[0]?.count || 0;
+  const products = facetResult.results || [];
+
+  const response: SearchProductsResponse = { products, totalCount };
+
+  res.json(createSuccessResponse(response, `Found ${totalCount} products matching the search criteria`));
 }
