@@ -34,6 +34,19 @@ router.get("/categories", asyncHandler(productController.getDistinctCategories))
 
 /**
  * @swagger
+ * /api/products/aggregations/reportingByReviews:
+ *   get:
+ *     summary: Get products with their most recent reviews
+ *     description: Joins the reviews collection via $lookup and returns each product's N most recent reviews.
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Products with recent reviews
+ */
+router.get("/aggregations/reportingByReviews", asyncHandler(productController.getProductsWithMostRecentReviews));
+
+/**
+ * @swagger
  * /api/products/{id}:
  *   get:
  *     summary: Get a product by ID

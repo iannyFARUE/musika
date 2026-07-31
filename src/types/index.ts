@@ -101,3 +101,21 @@ export type ProductFilter = {
   price?: { $gte?: number; $lte?: number };
   "rating.average"?: { $gte?: number };
 };
+
+export interface AggregationReview {
+  _id?: ObjectId;
+  reviewerName: string;
+  reviewerEmail: string;
+  text: string;
+  date: Date;
+}
+
+export interface ProductWithReviewsResult {
+  _id: string;
+  name: string;
+  categories?: string[];
+  ratingAverage?: number;
+  recentReviews: AggregationReview[];
+  totalReviews: number;
+  mostRecentReviewDate?: Date;
+}

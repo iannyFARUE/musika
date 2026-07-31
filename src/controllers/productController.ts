@@ -9,7 +9,15 @@ import {
   sanitizeBatchFilter,
   sanitizeUpdateFields,
 } from "../utils/mongoQuery";
-import { CreateProductRequest, Product, ProductFilter, RawProductQuery, UpdateProductRequest } from "../types";
+import {
+  AggregationReview,
+  CreateProductRequest,
+  Product,
+  ProductFilter,
+  ProductWithReviewsResult,
+  RawProductQuery,
+  UpdateProductRequest,
+} from "../types";
 
 export async function getAllProducts(req: Request, res: Response): Promise<void> {
   const productsCollection = getCollection<Product>("products");
@@ -329,4 +337,80 @@ export async function findAndDeleteProduct(req: Request, res: Response): Promise
   }
 
   res.json(createSuccessResponse(deletedProduct, "Product found and deleted successfully"));
+}
+
+export async function getProductsWithMostRecentReviews(req: Request, res: Response): Promise<void> {
+  const productsCollection = getCollection<Product>("products");
+  const { limit = "10", productId } = req.query;
+
+  const limitNum = Math.min(Math.max(parseInt(limit as string) || 10, 1), 50);
+
+  const pipeline: Document[] = [{ $match: {} }];
+
+  if (productId && typeof productId === "string") {
+    if (!ObjectId.isValid(productId)) {
+      res.status(400).json(createErrorResponse("Invalid product ID format", "INVALID_OBJECT_ID"));
+      return;
+    }
+    pipeline[0].$match._id = new ObjectId(productId);
+  }
+
+  pipeline.push(
+    { $lookup: { from: "reviews", localField: "_id", foreignField: "product_id", as: "reviews" } },
+    { $match: { reviews: { $ne: [] } } },
+    {
+      $addFields: {
+        recentReviews: { $slice: [{ $sortArray: { input: "$reviews", sortBy: { date: -1 } } }, limitNum] },
+        mostRecentReviewDate: { $max: "$reviews.date" },
+      },
+    },
+    { $sort: { mostRecentReviewDate: -1 } },
+    { $limit: productId ? 50 : 20 },
+    {
+      $project: {
+        name: 1,
+        categories: 1,
+        _id: 1,
+        ratingAverage: "$rating.average",
+        recentReviews: {
+          $map: {
+            input: "$recentReviews",
+            as: "review",
+            in: {
+              _id: "$$review._id",
+              reviewerName: "$$review.name",
+              reviewerEmail: "$$review.email",
+              text: "$$review.text",
+              date: "$$review.date",
+            },
+          },
+        },
+        totalReviews: { $size: "$reviews" },
+      },
+    }
+  );
+
+  const results = await productsCollection.aggregate(pipeline).toArray();
+
+  const processedResults: ProductWithReviewsResult[] = results.map((result) => ({
+    _id: result._id.toString(),
+    name: result.name,
+    categories: result.categories,
+    ratingAverage: result.ratingAverage,
+    recentReviews: result.recentReviews.map((review: AggregationReview) => ({
+      _id: review._id?.toString(),
+      reviewerName: review.reviewerName,
+      reviewerEmail: review.reviewerEmail,
+      text: review.text,
+      date: review.date,
+    })),
+    totalReviews: result.totalReviews,
+  }));
+
+  const totalReviews = processedResults.reduce((sum, r) => sum + (r.totalReviews || 0), 0);
+  const message = productId
+    ? `Found ${totalReviews} reviews from product`
+    : `Found ${totalReviews} reviews from ${processedResults.length} product${processedResults.length !== 1 ? "s" : ""}`;
+
+  res.json(createSuccessResponse(processedResults, message));
 }

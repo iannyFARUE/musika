@@ -5,6 +5,7 @@ import {
   SAMPLE_PRODUCTS,
   SAMPLE_REQUESTS,
   SAMPLE_RESPONSES,
+  SAMPLE_REVIEWS_AGGREGATION,
   createMockRequest,
   createMockResponse,
   expectSuccessResponse,
@@ -25,6 +26,7 @@ const mockDeleteOne = jest.fn();
 const mockDeleteMany = jest.fn();
 const mockFindOneAndDelete = jest.fn();
 const mockDistinct = jest.fn();
+const mockAggregate = jest.fn();
 
 const mockGetCollection = jest.fn(() => ({
   find: mockFind.mockReturnValue({
@@ -42,6 +44,7 @@ const mockGetCollection = jest.fn(() => ({
   deleteMany: mockDeleteMany,
   findOneAndDelete: mockFindOneAndDelete,
   distinct: mockDistinct,
+  aggregate: mockAggregate.mockReturnValue({ toArray: mockToArray }),
 }));
 
 jest.mock("../../src/config/database", () => ({ getCollection: mockGetCollection }));
@@ -80,6 +83,7 @@ import {
   deleteProduct,
   deleteProductsBatch,
   findAndDeleteProduct,
+  getProductsWithMostRecentReviews,
 } from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
@@ -375,6 +379,25 @@ describe("Product Controller Tests", () => {
       await findAndDeleteProduct(mockRequest as Request, mockResponse as Response);
 
       expectSuccessResponse(mockCreateSuccessResponse, SAMPLE_PRODUCT, "Product found and deleted successfully");
+    });
+  });
+
+  describe("getProductsWithMostRecentReviews", () => {
+    it("returns products with their recent reviews", async () => {
+      mockToArray.mockResolvedValue(SAMPLE_REVIEWS_AGGREGATION);
+
+      await getProductsWithMostRecentReviews(mockRequest as Request, mockResponse as Response);
+
+      expect(mockAggregate).toHaveBeenCalled();
+      expect(mockJson).toHaveBeenCalled();
+    });
+
+    it("returns 400 for an invalid productId filter", async () => {
+      mockRequest = createMockRequest({ query: { productId: INVALID_PRODUCT_ID } });
+
+      await getProductsWithMostRecentReviews(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 400, "Invalid product ID format", "INVALID_OBJECT_ID");
     });
   });
 });

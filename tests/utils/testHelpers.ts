@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { Request, Response } from "express";
 
 export const TEST_OBJECT_IDS = {
@@ -51,6 +52,25 @@ export const SAMPLE_RESPONSES = {
   UPDATE_ONE: { matchedCount: 1, modifiedCount: 1 },
   UPDATE_MANY: { matchedCount: 5, modifiedCount: 3 },
 };
+
+export const SAMPLE_REVIEWS_AGGREGATION = [
+  {
+    _id: new ObjectId(),
+    name: "Test Widget",
+    categories: ["Electronics"],
+    ratingAverage: 4.5,
+    recentReviews: [
+      {
+        _id: new ObjectId(),
+        reviewerName: "Jane Doe",
+        reviewerEmail: "jane@example.com",
+        text: "Great product!",
+        date: new Date("2024-01-01"),
+      },
+    ],
+    totalReviews: 5,
+  },
+];
 
 export function expectErrorResponse(
   mockStatus: jest.Mock,
