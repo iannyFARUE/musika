@@ -73,6 +73,10 @@ const logger = winston.createLogger({
   levels,
   transports: createTransports(),
   exitOnError: false,
+  // In test env there are no transports (avoids file/console noise during test runs).
+  // `silent` short-circuits the write path entirely instead of just leaving it empty,
+  // which avoids Winston's own "attempt to write with no transports" console.error warning.
+  silent: (process.env.NODE_ENV || "development") === "test",
 });
 
 export function logHttpRequest(method: string, url: string, statusCode: number, responseTime: number): void {
