@@ -1,11 +1,13 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import swaggerUi from "swagger-ui-express";
 import { closeDatabaseConnection, connectToDatabase, verifyRequirements } from "./config/database";
 import { errorHandler } from "./utils/errorHandler";
 import logger from "./utils/logger";
 import { requestLogger } from "./middleware/requestLogger";
 import productsRouter from "./routes/products";
+import { swaggerSpec } from "./config/swagger";
 
 dotenv.config({ quiet: true });
 
@@ -20,6 +22,8 @@ app.use(cors({ origin: corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins, 
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(requestLogger);
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/products", productsRouter);
 
