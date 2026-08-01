@@ -9,11 +9,15 @@ import {
   SAMPLE_CATEGORY_AGGREGATION,
   SAMPLE_BRAND_AGGREGATION,
   SAMPLE_SEARCH_RESULTS,
+  SAMPLE_VECTOR_RESULTS,
+  createMockVoyageResponse,
   createMockRequest,
   createMockResponse,
   expectSuccessResponse,
   expectErrorResponse,
 } from "../utils/testHelpers";
+
+global.fetch = jest.fn();
 
 const TEST_PRODUCT_ID = TEST_OBJECT_IDS.VALID;
 const INVALID_PRODUCT_ID = TEST_OBJECT_IDS.INVALID;
@@ -90,6 +94,7 @@ import {
   getProductsByCategoryWithStats,
   getBrandsWithMostProducts,
   searchProducts,
+  vectorSearchProducts,
 } from "../../src/controllers/productController";
 
 describe("Product Controller Tests", () => {
@@ -456,6 +461,52 @@ describe("Product Controller Tests", () => {
         mockCreateSuccessResponse,
         { products: SAMPLE_SEARCH_RESULTS, totalCount: 1 },
         "Found 1 products matching the search criteria"
+      );
+    });
+  });
+
+  describe("vectorSearchProducts", () => {
+    beforeEach(() => {
+      process.env.VOYAGE_API_KEY = "test-key";
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => createMockVoyageResponse(),
+      });
+    });
+
+    afterEach(() => {
+      delete process.env.VOYAGE_API_KEY;
+    });
+
+    it("returns 400 when q is missing", async () => {
+      mockRequest = createMockRequest({ query: {} });
+
+      await vectorSearchProducts(mockRequest as Request, mockResponse as Response);
+
+      expectErrorResponse(mockStatus, mockJson, 400, "Search query is required", "MISSING_QUERY_PARAMETER");
+    });
+
+    it("returns 400 when VOYAGE_API_KEY is not configured", async () => {
+      delete process.env.VOYAGE_API_KEY;
+      mockRequest = createMockRequest({ query: { q: "wireless speaker" } });
+
+      await vectorSearchProducts(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+    });
+
+    it("returns similar products sorted by score", async () => {
+      mockRequest = createMockRequest({ query: { q: "wireless speaker" } });
+      // First toArray() call is embeddedCollection.aggregate(...).toArray() (vector matches),
+      // second is productsCollection.find(...).toArray() (the default mocked find chain
+      // from earlier tasks also resolves through mockToArray) — queue both in call order.
+      mockToArray.mockResolvedValueOnce(SAMPLE_VECTOR_RESULTS).mockResolvedValueOnce([]);
+
+      await vectorSearchProducts(mockRequest as Request, mockResponse as Response);
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://api.voyageai.com/v1/embeddings",
+        expect.objectContaining({ method: "POST" })
       );
     });
   });

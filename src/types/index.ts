@@ -155,3 +155,14 @@ export interface SearchProductsResponse {
   products: Product[];
   totalCount: number;
 }
+
+export interface VectorSearchResult {
+  _id: string;
+  name: string;
+  shortDescription?: string;
+  imageUrl?: string;
+  price?: number;
+  categories?: string[];
+  brand?: string;
+  score: number;
+}

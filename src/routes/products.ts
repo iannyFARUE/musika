@@ -47,6 +47,19 @@ router.get("/search", asyncHandler(productController.searchProducts));
 
 /**
  * @swagger
+ * /api/products/vector-search:
+ *   get:
+ *     summary: Semantic search via MongoDB Vector Search
+ *     description: Uses Voyage AI embeddings and $vectorSearch to find products with semantically similar descriptions.
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Vector search results with similarity scores
+ */
+router.get("/vector-search", asyncHandler(productController.vectorSearchProducts));
+
+/**
+ * @swagger
  * /api/products/aggregations/reportingByReviews:
  *   get:
  *     summary: Get products with their most recent reviews

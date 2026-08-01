@@ -86,6 +86,15 @@ export const SAMPLE_SEARCH_RESULTS = [
   { _id: new ObjectId(), name: "Nova Wireless Speaker", brand: "Nova", tags: ["bestseller"], price: 49.99 },
 ];
 
+export const SAMPLE_VECTOR_RESULTS = [
+  { _id: new ObjectId(), score: 0.85 },
+  { _id: new ObjectId(), score: 0.78 },
+];
+
+export function createMockVoyageResponse(dimensions = 2048) {
+  return { data: [{ embedding: new Array(dimensions).fill(0.1) }] };
+}
+
 export function expectErrorResponse(
   mockStatus: jest.Mock,
   mockJson: jest.Mock,

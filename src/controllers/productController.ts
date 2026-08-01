@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Document, ObjectId, Sort } from "mongodb";
 import { getCollection } from "../config/database";
 import { createErrorResponse, createSuccessResponse, validateRequiredFields } from "../utils/errorHandler";
+import logger from "../utils/logger";
 import {
   convertFilterObjectIds,
   escapeRegexLiteral,
@@ -9,6 +10,7 @@ import {
   sanitizeBatchFilter,
   sanitizeUpdateFields,
 } from "../utils/mongoQuery";
+import { generateVoyageEmbedding, VoyageAuthError, VoyageAPIError } from "../utils/voyageClient";
 import {
   AggregationReview,
   CreateProductRequest,
@@ -20,6 +22,7 @@ import {
   SearchPhrase,
   SearchProductsResponse,
   UpdateProductRequest,
+  VectorSearchResult,
 } from "../types";
 
 export async function getAllProducts(req: Request, res: Response): Promise<void> {
@@ -575,4 +578,100 @@ export async function searchProducts(req: Request, res: Response): Promise<void>
   const response: SearchProductsResponse = { products, totalCount };
 
   res.json(createSuccessResponse(response, `Found ${totalCount} products matching the search criteria`));
+}
+
+export async function vectorSearchProducts(req: Request, res: Response): Promise<void> {
+  const { q, limit = "10" } = req.query;
+
+  if (!q || typeof q !== "string" || q.trim().length === 0) {
+    res.status(400).json(createErrorResponse("Search query is required", "MISSING_QUERY_PARAMETER"));
+    return;
+  }
+
+  if (!process.env.VOYAGE_API_KEY || process.env.VOYAGE_API_KEY.trim().length === 0) {
+    res
+      .status(400)
+      .json(
+        createErrorResponse(
+          "Vector search unavailable: VOYAGE_API_KEY not configured. Please add your API key to the .env file",
+          "SERVICE_UNAVAILABLE"
+        )
+      );
+    return;
+  }
+
+  const limitNum = Math.min(Math.max(parseInt(limit as string) || 10, 1), 50);
+
+  try {
+    const queryVector = await generateVoyageEmbedding(q.trim(), process.env.VOYAGE_API_KEY, "query");
+
+    const embeddedCollection = getCollection("embedded_products");
+    const vectorSearchPipeline = [
+      {
+        $vectorSearch: {
+          index: "vector_index",
+          path: "description_embedding_voyage_3_large",
+          queryVector,
+          numCandidates: limitNum * 20,
+          limit: limitNum,
+        },
+      },
+      { $project: { _id: 1, score: { $meta: "vectorSearchScore" } } },
+    ];
+
+    const vectorResults = await embeddedCollection.aggregate(vectorSearchPipeline).toArray();
+
+    if (vectorResults.length === 0) {
+      res.json(createSuccessResponse([], `No similar products found for query: '${q}'`));
+      return;
+    }
+
+    const productIds = vectorResults.map((doc) => doc._id);
+    const scoreMap = new Map<string, number>();
+    vectorResults.forEach((doc) => scoreMap.set(doc._id.toString(), doc.score));
+
+    const productsCollection = getCollection<Product>("products");
+    const products = await productsCollection.find({ _id: { $in: productIds } }).toArray();
+
+    const finalResults: VectorSearchResult[] = products
+      .map((product) => ({
+        _id: product._id!.toString(),
+        name: product.name,
+        shortDescription: product.shortDescription,
+        imageUrl: product.imageUrl,
+        price: product.price,
+        categories: product.categories || [],
+        brand: product.brand,
+        score: scoreMap.get(product._id!.toString()) || 0,
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    res.json(createSuccessResponse(finalResults, `Found ${finalResults.length} similar products for query: '${q}'`));
+  } catch (error) {
+    logger.error("Vector search error:", error);
+
+    if (error instanceof VoyageAuthError) {
+      res
+        .status(401)
+        .json(
+          createErrorResponse(error.message, "VOYAGE_AUTH_ERROR", "Please verify your VOYAGE_API_KEY is correct in the .env file")
+        );
+      return;
+    }
+
+    if (error instanceof VoyageAPIError) {
+      res.status(503).json(createErrorResponse("Vector search service unavailable", "VOYAGE_API_ERROR", error.message));
+      return;
+    }
+
+    res
+      .status(500)
+      .json(
+        createErrorResponse(
+          "Error performing vector search",
+          "VECTOR_SEARCH_ERROR",
+          error instanceof Error ? error.message : "Unknown error"
+        )
+      );
+  }
 }
